@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 
-sudo apt update && sudo apt install -y nodejs npm
+# Exit on any error
+set -e
 
-sudo npm install -g pm2
+# Navigate to project directory
+cd ~/ExampleApplication
 
-pm2 stop example_app
+# Pull latest code from GitHub
+git pull origin main
 
-cd ExampleApplication/
-
+# Install dependencies
 npm install
 
-pm2 start ./bin/www --name example_app
+# Restart PM2 app with correct port
+PORT=8080 pm2 restart calculator-app || PORT=8080 pm2 start bin/www --name calculator-app
