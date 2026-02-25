@@ -11,6 +11,8 @@ git pull origin main
 
 # Install dependencies
 npm install
+echo "$PRIVATE_KEY" > privatekey.pem
+echo "$SERVER" > server.crt
 
 # Restart PM2 app with correct port
 PORT=8080 pm2 restart calculator-app || PORT=8080 pm2 start bin/www --name calculator-app
