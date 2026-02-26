@@ -7,17 +7,27 @@ jobs:
     steps:
       - checkout
 
+      # Load SSH key stored in CircleCI
       - add_ssh_keys:
           fingerprints:
             - "SHA256:gLU0U5XVoxUOCCEIp8UNV90vweATx/PcNcUEijfP+n4"
 
+      # Deploy to EC2
       - run:
           name: Deploy to EC2
           command: |
-            ssh -o StrictHostKeyChecking=no ubuntu@3.87.133.178 "export SERVER=\"$SERVER\"; export PRIVATE_KEY=\"$PRIVATE_KEY\"; cd ExampleApplication && ./deploy.sh"
+            ssh -o StrictHostKeyChecking=no ubuntu@3.87.133.178 "
+              cd ExampleApplication &&
+              git pull origin main &&
+              npm install &&
+              pm2 restart calculator-app || pm2 start bin/www --name calculator-app
+            "
 
 workflows:
   version: 2
   deploy_workflow:
     jobs:
-      - deploy
+      - deploy:
+          filters:
+            branches:
+              only: main
