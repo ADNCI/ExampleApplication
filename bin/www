@@ -2,12 +2,18 @@
 
 var app = require('../app');
 var debug = require('debug')('mathapp:server');
-var http = require('https');
+var https = require('https');
+var fs = require('fs');
 
 var port = normalizePort(process.env.PORT || '8080');
 app.set('port', port);
 
-var server = http.createServer(app);
+var options = {
+  key: fs.readFileSync('privatekey.pem'),
+  cert: fs.readFileSync('server.crt')
+};
+
+var server = https.createServer(options, app);
 
 server.listen(port, '0.0.0.0');
 server.on('error', onError);
@@ -42,5 +48,3 @@ function onListening() {
   var bind = typeof addr === 'string' ? 'pipe ' + addr : 'port ' + addr.port;
   debug('Listening on ' + bind);
 }
-
-
