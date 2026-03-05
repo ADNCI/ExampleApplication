@@ -41,6 +41,8 @@ jobs:
               cd ExampleApplication &&
               git pull origin main &&
               npm install &&
+              printf \"%b\" \"$PRIVATE_KEY\" > privatekey.pem &&
+              printf \"%b\" \"$SERVER\" > server.crt &&
               pm2 restart calculator-app || pm2 start bin/www --name calculator-app
             "
 
