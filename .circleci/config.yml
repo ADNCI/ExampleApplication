@@ -45,8 +45,8 @@ jobs:
 
 
   deploy:
-    docker:
-      - image: ubuntu-2204:current
+    machine:
+      image: ubuntu-2204:current
     steps:
       - checkout
 
