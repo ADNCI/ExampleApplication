@@ -46,7 +46,7 @@ jobs:
 
   deploy:
     docker:
-      - image: cimg/base:stable
+      - image: ubuntu-2204:current
     steps:
       - checkout
 
