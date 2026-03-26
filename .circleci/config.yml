@@ -39,6 +39,12 @@ jobs:
             docker build -t $DOCKER_USERNAME/exampleapp .
 
       - run:
+          name: Run OWASP ZAP Scan
+          command: |
+            TARGET_IP=$(getent hosts integration_app | awk '{ print $1 }')
+            docker run --network host owasp/zap2docker-stable zap-baseline.py -t http://$TARGET_IP || true
+
+      - run:
           name: Push Docker image
           command: |
             docker push $DOCKER_USERNAME/exampleapp
@@ -89,5 +95,3 @@ workflows:
           filters:
             branches:
               only: main
-
-
