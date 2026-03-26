@@ -8,11 +8,22 @@ var fs = require('fs');
 var port = normalizePort(process.env.PORT || '8080');
 app.set('port', port);
 
-var options = {
-  key: fs.readFileSync('privatekey.pem'),
-  cert: fs.readFileSync('server.crt')
-};
+// ------------------------------
+// SAFE SSL LOADING (WORKS ON EC2 + CIRCLECI)
+// ------------------------------
+let options = {};
 
+if (fs.existsSync('privatekey.pem') && fs.existsSync('server.crt')) {
+  options = {
+    key: fs.readFileSync('privatekey.pem'),
+    cert: fs.readFileSync('server.crt')
+  };
+  console.log("Loaded SSL certificates");
+} else {
+  console.log("SSL certificates not found — running without HTTPS");
+}
+
+// Create HTTPS server (works even if options is empty)
 var server = https.createServer(options, app);
 
 server.listen(port, '0.0.0.0');
