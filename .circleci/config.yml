@@ -12,7 +12,7 @@ jobs:
           command: npm install
 
       - run:
-          name: Audit packages (non-blocking)
+          name: Audit packages
           command: npm audit --audit-level=critical || true
 
       - run:
@@ -23,56 +23,34 @@ jobs:
   build_and_push_docker:
     docker:
       - image: cimg/base:stable
+      - image: $DOCKER_USERNAME/exampleapp
+        name: integration_app
     steps:
       - checkout
+
       - setup_remote_docker
 
       - run:
           name: Login to Docker Hub
           command: |
-            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+            echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
 
       - run:
           name: Build Docker image
           command: |
-            docker build -t "$DOCKER_USERNAME/exampleapp" .
+            docker build -t $DOCKER_USERNAME/exampleapp .
+
+      - run:
+          name: Run OWASP ZAP Scan
+          command: |
+            TARGET_IP=$(getent hosts integration_app | awk '{ print $1 }')
+            echo "Scanning http://$TARGET_IP"
+            docker run --network host owasp/zap2docker-stable zap-baseline.py -t http://$TARGET_IP || true
 
       - run:
           name: Push Docker image
           command: |
-            docker push "$DOCKER_USERNAME/exampleapp"
-
-
-  zap_scan:
-    docker:
-      - image: cimg/base:stable
-    steps:
-      - checkout
-      - setup_remote_docker
-
-      - run:
-          name: Start application container
-          command: |
-            docker run -d --name integration_app -p 8080:8080 "$DOCKER_USERNAME/exampleapp"
-
-      - run:
-          name: Wait for app to be ready
-          command: |
-            for i in {1..20}; do
-              if curl -s http://localhost:8080 > /dev/null; then
-                echo "App is up"
-                break
-              fi
-              echo "Waiting for app..."
-              sleep 3
-            done
-
-      - run:
-          name: Run OWASP ZAP Baseline Scan (non-blocking)
-          command: |
-            docker run --network container:integration_app \
-              owasp/zap2docker-stable zap-baseline.py \
-              -t http://localhost:8080 || true
+            docker push $DOCKER_USERNAME/exampleapp
 
 
   deploy:
@@ -86,18 +64,37 @@ jobs:
             - "SHA256:gLU0U5XVoxUOCCEIp8UNV90vweATx/PcNcUEijfP+n4"
 
       - run:
-          name: Fix SSH permissions
-          command: |
-            chmod 600 ~/.ssh/id_rsa
-
-      - run:
-          name: Add EC2 host to known_hosts
-          command: |
-            ssh-keyscan -H "$EC2_PUBLIC_IP" >> ~/.ssh/known_hosts
-
-      - run:
           name: Deploy to EC2
           command: |
-            ssh ubuntu@"$EC2_PUBLIC_IP" \
-              'cd /home/ubuntu && ./deploy.sh'
+            ssh -o StrictHostKeyChecking=no ubuntu@34.235.1.194 "
+              cd ExampleApplication &&
+              git pull origin main &&
+              npm install &&
+              printf \"%b\" \"$PRIVATE_KEY\" > privatekey.pem &&
+              printf \"%b\" \"$SERVER\" > server.crt &&
+              pm2 restart calculator-app || pm2 start bin/www --name calculator-app
+            "
 
+
+workflows:
+  version: 2
+  deploy_workflow:
+    jobs:
+      - run_checks:
+          filters:
+            branches:
+              only: main
+
+      - build_and_push_docker:
+          requires:
+            - run_checks
+          filters:
+            branches:
+              only: main
+
+      - deploy:
+          requires:
+            - build_and_push_docker
+          filters:
+            branches:
+              only: main
